@@ -1,5 +1,6 @@
 import argparse
 import time
+import traceback
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
@@ -12,6 +13,7 @@ PASSWORD = ""
 POOL = 'Small Pool Swim/Walk'
 BIG_POOL = 'Large Pool Lap Swim'
 INDOOR = 'Inside Fitness Floor'
+AVAILABLE_DATE_LOADING_RETRY = 20
 
 TARGET_DATE = 27
 SPORT = POOL
@@ -30,6 +32,7 @@ cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 P
 cmd.add_argument("-s", "--sport", default='small_pool', choices=['small_pool', 'big_pool', 'gym'], help="The sport to book, must be one of [small_pool, big_pool, gym]")
 cmd.add_argument('--close', default=True, action='store_true')
 cmd.add_argument('--no-close', dest='close', action='store_false', help='Do not close the browser after booking is finished')
+cmd.add_argument('--open-only', default=False, action='store_true', dest='open_only', help='Only login')
 cmd = cmd.parse_args()
 
 USERNAME = cmd.username
@@ -50,26 +53,27 @@ elif cmd.sport == 'gym':
 
 # Wait until mid night
 
-last_log_time = datetime.now()
+last_log_time = datetime(2020, 3, 27)
 
 while (datetime.now() + timedelta(days=2)).day != TARGET_DATE:
-    time.sleep(5)
+    time.sleep(1)
     if (datetime.now() - last_log_time).seconds > 3600:
         print("waiting for midnight, now is %s" % datetime.now())
         last_log_time = datetime.now()
 
+# Time to work. We will try for 100 times.
 
 failed_num = 0
 driver = None
-while failed_num < 20:
+while failed_num < 100:
     try:
+        print("[%s]" % datetime.now())
         driver = webdriver.Firefox()
         driver.set_page_load_timeout(600)
         driver.get("http://www.ourclublogin.com/500092")
         print("Opened login page, title:", driver.title)
 
         # Login Page
-
         username_input = driver.find_element_by_id("Username")
         password_input = driver.find_element_by_id("Password")
         login_btn = driver.find_element_by_xpath("//button[@type='submit']")
@@ -79,52 +83,81 @@ while failed_num < 20:
         print("Done input credential, waiting home page to load")
         login_btn.click()
 
-
-
         # Home page
         print("Home page responded, wating for booking button to load")
-        book_btn = WebDriverWait(driver, 600).until(EC.element_to_be_clickable((By.XPATH, "//button[@ng-reflect-router-link='/Appointments']")))
+        book_btn = WebDriverWait(driver, 600).until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[@ng-reflect-router-link='/Appointments']")))
         print("Home page loaded")
+        if cmd.open_only:
+            print("open-only flag is turned on, quitting here")
+            break
         book_btn.click()
         print("Waiting for booking page to load")
 
-
         # Booking page
-        select_pool = Select(WebDriverWait(driver, 600).until(EC.element_to_be_clickable((By.NAME, "bookableItem"))))
+
+        ## Select the sport and select 'all resources'        
+        select_pool = Select(WebDriverWait(driver, 600).until(
+            EC.element_to_be_clickable((By.NAME, "bookableItem"))))
         select_pool.select_by_visible_text(SPORT)
         print("Selected [%s]" % SPORT)
 
-        select_all = Select(WebDriverWait(driver, 600).until(EC.element_to_be_clickable((By.NAME, "primaryResourceType"))))
+        select_all = Select(WebDriverWait(driver, 600).until(
+            EC.element_to_be_clickable((By.NAME, "primaryResourceType"))))
         select_all.select_by_visible_text("All Resources")
-        print("Selected [All Resources]")
+        print("Selected [All Resources], waiting for available dates to load")
 
+        ## Find the date
+        date_cell = WebDriverWait(driver, 600).until(
+            EC.element_to_be_clickable(
+                (By.XPATH,
+                 '//mwl-calendar-month-cell[contains(@class, "cal-in-month") and .//span[text()="%d"]]' % TARGET_DATE)))
 
-        date_cell = WebDriverWait(driver, 600).until(EC.element_to_be_clickable((By.XPATH, '//mwl-calendar-month-cell[.//span[text()="%d"]]' % TARGET_DATE)))
-        print("found date cell for date: [%d], waiting for elements to load" % TARGET_DATE)
-        time.sleep(10)
-        print("Clicking date cell for date: [%d]" % TARGET_DATE)
-        date_cell.click()
-
-
+        date_retry = 0
+        while date_retry < AVAILABLE_DATE_LOADING_RETRY:
+            try:
+                print("Clicking date cell for date: [%d]" % TARGET_DATE)
+                date_cell.click()
+                break
+            except Exception as err:
+                print("Failed to click date cell, maybe still waiting for page loading, error: %s" % err)
+                date_retry += 1
+                time.sleep(10)
+        if date_retry >= AVAILABLE_DATE_LOADING_RETRY:
+            raise Exception("Give up clicking date cell after %d times" % date_retry)
         links = driver.find_elements_by_class_name("appointment-tab-gray")
+        if len(links) == 0:
+            raise Exception("Can't find any slots link")
+
         for link in links[TIME_COLUMN::3]:
             link.click()
 
-        print("All spots' link is expanded, finding available slots")
-        time_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[text()=' %s ']" % TIME)))
-        print("Found and clicked an available slot")        
+        print("All spots' links all expanded, finding available slots")
+        time_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[text()=' %s ']" % TIME)))
+        avail = driver.find_elements_by_xpath("//button[text()=' %s ']" % TIME)
+        print("Found %d available slot at [%s], will click the first" % (len(avail), TIME))
         time_btn.click()
-        print("Clicked time button, waiting for book confirmation")                
-        confirm_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[text()='BOOK']")))
+        print("Clicked time button, waiting for book button to show up")                
+        confirm_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[text()='BOOK']")))
         confirm_btn.click()
-        print("Confirmed booking")
+        print("Clicked book botton. Finding OK button to be sure")
+        ok_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[text()='OK']")))
+        print("Found OK button, booking should be successful")
+        try:
+            ok_btn.click()
+        except Excpetion as err:
+            print("Failed to click OK button, but will ignore this message. %s" % err)
         if cmd.close:
             driver.quit()
         break
     except Exception as ex:
         print("Got exception: ", ex)
+        traceback.print_exc()        
         failed_num += 1
         if driver is not None:
             driver.quit()
-        time.sleep(10.0)
+        time.sleep(5.0)
 
