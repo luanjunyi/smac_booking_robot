@@ -1,7 +1,10 @@
 import argparse
 import time
 import traceback
+import os
+import subprocess
 from datetime import datetime, timedelta
+from multiprocessing import Process
 from selenium import webdriver
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,7 +16,7 @@ PASSWORD = ""
 POOL = 'Small Pool Swim/Walk'
 BIG_POOL = 'Large Pool Lap Swim'
 INDOOR = 'Inside Fitness Floor'
-AVAILABLE_DATE_LOADING_RETRY = 20
+AVAILABLE_DATE_LOADING_RETRY = 60
 
 TARGET_DATE = 27
 SPORT = POOL
@@ -23,15 +26,25 @@ SPORT = POOL
 TIME = "5:00 PM"
 TIME_COLUMN = 2
 
-# Pass argument
+# First, start caffeinate on Mac to avoid the system and display from going to sleep
+def caffeinate(pid):
+    print('Starting caffeinate to protect pid=%d, this subprocess PID is %d' %
+          (pid, os.getpid()))
+    subprocess.run(['caffeinate', '-d', '-w %d' % pid])
+
+
+caffe = Process(target=caffeinate, args=(os.getpid(), ))
+caffe.start()
+
+
+# Parse argument
 cmd = argparse.ArgumentParser(description='Example: book.py -u xxx -p yyy -d 15 -t "5:00 PM" -s gym')
 cmd.add_argument("-u", "--username", help="User name in text", required=True)
 cmd.add_argument("-p", "--password", help="Password in text", required=True)
 cmd.add_argument("-d", "--date", type=int, choices=range(1, 32), help="Password in text", required=True)
 cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 PM'], help="Time to book, must be one of: ['5:00 PM', '12:00 PM']")
 cmd.add_argument("-s", "--sport", default='small_pool', choices=['small_pool', 'big_pool', 'gym'], help="The sport to book, must be one of [small_pool, big_pool, gym]")
-cmd.add_argument('--close', default=True, action='store_true')
-cmd.add_argument('--no-close', dest='close', action='store_false', help='Do not close the browser after booking is finished')
+cmd.add_argument('--no-close', dest='close', default=False, action='store_false', help='Do not close the browser after booking is finished')
 cmd.add_argument('--open-only', default=False, action='store_true', dest='open_only', help='Only login')
 cmd = cmd.parse_args()
 
@@ -55,7 +68,7 @@ elif cmd.sport == 'gym':
 
 last_log_time = datetime(2020, 3, 27)
 
-while (datetime.now() + timedelta(days=2)).day != TARGET_DATE:
+while (datetime.now() + timedelta(days=2)).day != TARGET_DATE and not cmd.open_only:
     time.sleep(1)
     if (datetime.now() - last_log_time).seconds > 3600:
         print("waiting for midnight, now is %s" % datetime.now())
@@ -67,7 +80,7 @@ failed_num = 0
 driver = None
 while failed_num < 100:
     try:
-        print("[%s]" % datetime.now())
+        print("Start booking at [%s]" % datetime.now())
         driver = webdriver.Firefox()
         driver.set_page_load_timeout(600)
         driver.get("http://www.ourclublogin.com/500092")
@@ -116,13 +129,13 @@ while failed_num < 100:
         date_retry = 0
         while date_retry < AVAILABLE_DATE_LOADING_RETRY:
             try:
-                print("Clicking date cell for date: [%d]" % TARGET_DATE)
+                print("Will click date cell for date(%d) after 10 seconds" % TARGET_DATE)
+                time.sleep(10)
                 date_cell.click()
                 break
             except Exception as err:
                 print("Failed to click date cell, maybe still waiting for page loading, error: %s" % err)
                 date_retry += 1
-                time.sleep(10)
         if date_retry >= AVAILABLE_DATE_LOADING_RETRY:
             raise Exception("Give up clicking date cell after %d times" % date_retry)
         links = driver.find_elements_by_class_name("appointment-tab-gray")
