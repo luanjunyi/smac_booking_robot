@@ -1,6 +1,7 @@
 import argparse
 import time
 import traceback
+import calendar
 import os
 import subprocess
 from datetime import datetime, timedelta
@@ -27,14 +28,8 @@ TIME = "5:00 PM"
 TIME_COLUMN = 2
 
 # First, start caffeinate on Mac to avoid the system and display from going to sleep
-def caffeinate(pid):
-    print('Starting caffeinate to protect pid=%d, this subprocess PID is %d' %
-          (pid, os.getpid()))
-    subprocess.run(['caffeinate', '-d', '-w %d' % pid])
 
-
-caffe = Process(target=caffeinate, args=(os.getpid(), ))
-caffe.start()
+subprocess.Popen(['caffeinate', '-d', '-w',  '%d' % os.getpid()])
 
 
 # Parse argument
@@ -109,13 +104,27 @@ while failed_num < 100:
 
         # Booking page
 
+        ## Select the correct month when booking for next month
+        if TARGET_DATE < datetime.now().day:
+            print("Booking day is in next month, will try adjust calendar UI")
+            next_month_btn = WebDriverWait(driver, 5).until(EC.element_to_be_clickable(
+                (By.XPATH, "//div[@mwlcalendarnextview='']")))
+            print("Found next month button, clicking")
+            next_month_btn.click()
+            print("Next month button clicked")
+            next_month_literal = calendar.month_name[(datetime.now() + timedelta(days=2)).month]
+            for t in driver.find_elements_by_class_name('btn-white'):
+                if len(t.text) > 0:
+                    print("Month is selected as [%s]" % t.text)
+            
+
         ## Select the sport and select 'all resources'        
-        select_pool = Select(WebDriverWait(driver, 600).until(
+        select_pool = Select(WebDriverWait(driver, 60).until(
             EC.element_to_be_clickable((By.NAME, "bookableItem"))))
         select_pool.select_by_visible_text(SPORT)
         print("Selected [%s]" % SPORT)
 
-        select_all = Select(WebDriverWait(driver, 600).until(
+        select_all = Select(WebDriverWait(driver, 60).until(
             EC.element_to_be_clickable((By.NAME, "primaryResourceType"))))
         select_all.select_by_visible_text("All Resources")
         print("Selected [All Resources], waiting for available dates to load")
