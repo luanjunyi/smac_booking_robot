@@ -39,7 +39,7 @@ cmd.add_argument("-p", "--password", help="Password in text", required=True)
 cmd.add_argument("-d", "--date", type=int, choices=range(1, 32), help="Password in text", required=True)
 cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 PM'], help="Time to book, must be one of: ['5:00 PM', '12:00 PM']")
 cmd.add_argument("-s", "--sport", default='small_pool', choices=['small_pool', 'big_pool', 'gym'], help="The sport to book, must be one of [small_pool, big_pool, gym]")
-cmd.add_argument('--no-close', dest='close', default=False, action='store_false', help='Do not close the browser after booking is finished')
+cmd.add_argument('--no-close', dest='close', default=True, action='store_false', help='Do not close the browser after booking is finished')
 cmd.add_argument('--open-only', default=False, action='store_true', dest='open_only', help='Only login')
 cmd = cmd.parse_args()
 
