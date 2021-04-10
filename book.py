@@ -77,7 +77,7 @@ while failed_num < 100:
     try:
         print("Start booking at [%s]" % datetime.now())
         driver = webdriver.Firefox()
-        driver.set_page_load_timeout(600)
+        driver.set_page_load_timeout(120)
         driver.get("http://www.ourclublogin.com/500092")
         print("Opened login page, title:", driver.title)
 
@@ -93,7 +93,7 @@ while failed_num < 100:
 
         # Home page
         print("Home page responded, wating for booking button to load")
-        book_btn = WebDriverWait(driver, 600).until(EC.element_to_be_clickable(
+        book_btn = WebDriverWait(driver, 120).until(EC.element_to_be_clickable(
             (By.XPATH, "//button[@ng-reflect-router-link='/Appointments']")))
         print("Home page loaded")
         if cmd.open_only:
@@ -130,7 +130,7 @@ while failed_num < 100:
         print("Selected [All Resources], waiting for available dates to load")
 
         ## Find the date
-        date_cell = WebDriverWait(driver, 600).until(
+        date_cell = WebDriverWait(driver, 60).until(
             EC.element_to_be_clickable(
                 (By.XPATH,
                  '//mwl-calendar-month-cell[contains(@class, "cal-in-month") and .//span[text()="%d"]]' % TARGET_DATE)))
