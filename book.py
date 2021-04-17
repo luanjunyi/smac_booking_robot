@@ -37,7 +37,7 @@ cmd = argparse.ArgumentParser(description='Example: book.py -u xxx -p yyy -d 15 
 cmd.add_argument("-u", "--username", help="User name in text", required=True)
 cmd.add_argument("-p", "--password", help="Password in text", required=True)
 cmd.add_argument("-d", "--date", type=int, choices=range(1, 32), help="Password in text", required=True)
-cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 PM'], help="Time to book, must be one of: ['5:00 PM', '12:00 PM']")
+cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 PM', '10:00 AM'], help="Time to book, must be one of: ['5:00 PM', '12:00 PM', '10:00 AM']")
 cmd.add_argument("-s", "--sport", default='small_pool', choices=['small_pool', 'big_pool', 'gym'], help="The sport to book, must be one of [small_pool, big_pool, gym]")
 cmd.add_argument('--no-close', dest='close', default=True, action='store_false', help='Do not close the browser after booking is finished')
 cmd.add_argument('--open-only', default=False, action='store_true', dest='open_only', help='Only login')
@@ -51,6 +51,8 @@ if TIME == '5:00 PM':
     TIME_COLUMN = 2
 elif TIME == '12:00 PM':
     TIME_COLUMN = 1
+elif TIME == '10:00 AM':
+    TIME_COLUMN = 0
 
 if cmd.sport == 'small_pool':
     SPORT = POOL
