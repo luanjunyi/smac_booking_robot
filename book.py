@@ -24,7 +24,7 @@ SPORT = POOL
 # Below two must be changed together
 # 12:00 to 13:00 is 1, before that it's 0
 # 5:00 PM to 6:00 PM is 2, before that it's 1
-TIME = "5:00 PM"
+TIME = "6:00 PM"
 TIME_COLUMN = 2
 
 # First, start caffeinate on Mac to avoid the system and display from going to sleep
@@ -33,25 +33,27 @@ subprocess.Popen(['caffeinate', '-d', '-w',  '%d' % os.getpid()])
 
 
 # Parse argument
-cmd = argparse.ArgumentParser(description='Example: book.py -u xxx -p yyy -d 15 -t "5:00 PM" -s gym')
+cmd = argparse.ArgumentParser(description='Example: book.py -u xxx -p yyy -d 15 -t "6:00 PM" -s gym')
 cmd.add_argument("-u", "--username", help="User name in text", required=True)
 cmd.add_argument("-p", "--password", help="Password in text", required=True)
 cmd.add_argument("-d", "--date", type=int, choices=range(1, 32), help="Password in text", required=True)
-cmd.add_argument("-t", "--time", default='5:00 PM', choices=['5:00 PM', '12:00 PM', '10:00 AM'], help="Time to book, must be one of: ['5:00 PM', '12:00 PM', '10:00 AM']")
+cmd.add_argument("-t", "--time", default='5:00 PM', choices=['6:00 PM', '12:00 PM', '10:00 AM', '11:00 AM'], help="Time to book, must be one of: ['6:00 PM', '12:00 PM', '10:00 AM', '11:00 AM']")
 cmd.add_argument("-s", "--sport", default='small_pool', choices=['small_pool', 'big_pool', 'gym'], help="The sport to book, must be one of [small_pool, big_pool, gym]")
 cmd.add_argument('--no-close', dest='close', default=True, action='store_false', help='Do not close the browser after booking is finished')
 cmd.add_argument('--open-only', default=False, action='store_true', dest='open_only', help='Only login')
+cmd.add_argument('--wait-midnight', default=False, action='store_true', dest='wait_midnight', help='Waiting until the midnight two days before target booking date')
+
 cmd = cmd.parse_args()
 
 USERNAME = cmd.username
 PASSWORD = cmd.password
 TARGET_DATE = cmd.date
 TIME = cmd.time
-if TIME == '5:00 PM':
+if TIME == '6:00 PM':
     TIME_COLUMN = 2
 elif TIME == '12:00 PM':
     TIME_COLUMN = 1
-elif TIME == '10:00 AM':
+elif TIME in ('10:00 AM', '11:00 AM'):
     TIME_COLUMN = 0
 
 if cmd.sport == 'small_pool':
@@ -65,7 +67,7 @@ elif cmd.sport == 'gym':
 
 last_log_time = datetime(2020, 3, 27)
 
-while (datetime.now() + timedelta(days=2)).day != TARGET_DATE and not cmd.open_only:
+while (datetime.now() + timedelta(days=2)).day != TARGET_DATE and not cmd.open_only and cmd.wait_midnight:
     time.sleep(1)
     if (datetime.now() - last_log_time).seconds > 3600:
         print("waiting for midnight, now is %s" % datetime.now())
