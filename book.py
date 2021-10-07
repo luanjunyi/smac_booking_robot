@@ -86,8 +86,8 @@ while failed_num < 100:
         print("Opened login page, title:", driver.title)
 
         # Login Page
-        username_input = driver.find_element_by_id("Username")
-        password_input = driver.find_element_by_id("Password")
+        username_input = driver.find_element_by_name("username")
+        password_input = driver.find_element_by_name("password")
         login_btn = driver.find_element_by_xpath("//button[@type='submit']")
 
         username_input.send_keys(USERNAME)
@@ -98,7 +98,7 @@ while failed_num < 100:
         # Home page
         print("Home page responded, wating for booking button to load")
         book_btn = WebDriverWait(driver, 120).until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[@ng-reflect-router-link='/Appointments']")))
+            (By.XPATH, "//button[text()='book appointment']")))
         print("Home page loaded")
         if cmd.open_only:
             print("open-only flag is turned on, quitting here")
